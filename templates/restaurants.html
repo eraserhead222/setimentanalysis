@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ร้านอาหารทั้งหมด - Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="restaurant-page">
+
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-header">
+            <div class="page-title-row" style="margin-bottom:0;">
+                <div class="page-icon-box">🏪</div>
+                <div class="page-title-text">
+                    <h1>ร้านอาหารทั้งหมด</h1>
+                    <p>รวมร้านอาหารในจังหวัดนครราชสีมา</p>
+                </div>
+            </div>
+            <div class="header-badge">
+                <span class="badge-icon">🍽️</span>
+                <div>
+                    จำนวนร้านทั้งหมด
+                    <span class="badge-number">{{ total_count }} ร้าน</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ ค้นหา + ตัวกรอง + Grid + Pagination ============ -->
+        <div class="listing-box">
+
+            <div class="listing-search-row">
+                <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อร้านอาหาร, ประเภทอาหาร, คำสำคัญ..." oninput="filterRestaurants()">
+                <select class="sort-select" id="sortSelect" onchange="applySort()">
+                    <option value="score_desc">เรียงตาม: คะแนนรีวิว (มาก-น้อย)</option>
+                    <option value="reviews_desc">เรียงตาม: จำนวนรีวิว</option>
+                    <option value="name_asc">เรียงตาม: ชื่อร้าน (ก-ฮ)</option>
+                </select>
+            </div>
+
+            <div class="listing-filter-row">
+                <select class="filter-select-inline" disabled title="รอเก็บข้อมูลประเภทร้าน">
+                    <option>ประเภทอาหาร: ทั้งหมด</option>
+                </select>
+
+                <select class="filter-select-inline" disabled title="ข้อมูลทั้งหมดอยู่ในอำเภอเมืองนครราชสีมา">
+                    <option>อำเภอ: เมืองนครราชสีมา</option>
+                </select>
+
+                <select class="filter-select-inline" id="starFilter" onchange="filterRestaurants()">
+                    <option value="1">คะแนนรีวิว 1.0 ขึ้นไป</option>
+                    <option value="3">คะแนนรีวิว 3.0 ขึ้นไป</option>
+                    <option value="4">คะแนนรีวิว 4.0 ขึ้นไป</option>
+                    <option value="4.5">คะแนนรีวิว 4.5 ขึ้นไป</option>
+                </select>
+
+                <select class="filter-select-inline" id="sentimentFilter" onchange="filterRestaurants()">
+                    <option value="all">Sentiment: ทั้งหมด</option>
+                    <option value="high">Positive สูง (≥90%)</option>
+                    <option value="low">Positive ต่ำ (&lt;90%)</option>
+                </select>
+
+                <select class="filter-select-inline" disabled title="รอเก็บข้อมูลช่วงราคา">
+                    <option>ช่วงราคา: ทั้งหมด</option>
+                </select>
+
+                <button class="clear-filter-btn" onclick="resetFilters()">🔄 ล้างตัวกรอง</button>
+            </div>
+
+            <div class="restaurant-grid grid-4col" id="restaurantGrid">
+                {% for r in restaurants %}
+                <div class="restaurant-card searchable"
+                     data-name="{{ r.restaurant_name }}"
+                     data-stars="{{ r.stars }}"
+                     data-pos="{{ r.overall_pos }}"
+                     data-reviews="{{ r.total_reviews }}">
+                    <a href="/restaurant/{{ r.restaurant_name }}" class="restaurant-card-link">
+                        <div class="card-photo-placeholder">
+                            {% if r.photo_url %}
+                            <img src="{{ r.photo_url }}"
+                                 alt="{{ r.restaurant_name }}"
+                                 referrerpolicy="no-referrer"
+                                 loading="lazy"
+                                 style="width:100%; height:100%; object-fit:cover; border-radius:8px;"
+                                 onerror="this.onerror=null; this.style.display='none'; this.parentElement.classList.add('no-photo'); this.insertAdjacentHTML('afterend', '🍽️');">
+                            {% else %}
+                            🍽️
+                            {% endif %}
+                            <span class="heart-icon">♡</span>
+                        </div>
+                        <div class="restaurant-name">{{ r.restaurant_name }}</div>
+                        <div class="restaurant-score">
+                            ⭐ {{ r.stars }}
+                            <span class="score-value">{{ r.overall_pos | round(0) }}% Positive</span>
+                        </div>
+                        <div class="restaurant-reviews">📍 อ.เมืองนครราชสีมา</div>
+                        <div class="restaurant-reviews">💬 {{ r.total_reviews }} รีวิว</div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <p id="noResults" class="no-results" style="display:none;">ไม่พบร้านอาหารที่ตรงกับคำค้นหา</p>
+
+            <div class="pagination" id="pagination"></div>
+
+        </div>
+    </div>
+
+    <script>
+        const PAGE_SIZE = 8;   // 4 คอลัมน์ x 2 แถว ต่อหน้า
+        let currentPage = 1;
+
+        function getFilteredCards() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const minStars = parseFloat(document.getElementById('starFilter').value);
+            const sentimentValue = document.getElementById('sentimentFilter').value;
+            const allCards = Array.from(document.querySelectorAll('.restaurant-card.searchable'));
+
+            return allCards.filter(card => {
+                const name = card.dataset.name.toLowerCase();
+                const stars = parseFloat(card.dataset.stars);
+                const pos = parseFloat(card.dataset.pos);
+
+                let matchKeyword = name.includes(keyword);
+                let matchStars = stars >= minStars;
+                let matchSentiment = true;
+                if (sentimentValue === 'high') matchSentiment = pos >= 90;
+                if (sentimentValue === 'low') matchSentiment = pos < 90;
+
+                return matchKeyword && matchStars && matchSentiment;
+            });
+        }
+
+        function applySort() {
+            const grid = document.getElementById('restaurantGrid');
+            const cards = Array.from(document.querySelectorAll('.restaurant-card.searchable'));
+            const sortBy = document.getElementById('sortSelect').value;
+
+            cards.sort((a, b) => {
+                if (sortBy === 'score_desc') return parseFloat(b.dataset.pos) - parseFloat(a.dataset.pos);
+                if (sortBy === 'reviews_desc') return parseInt(b.dataset.reviews) - parseInt(a.dataset.reviews);
+                if (sortBy === 'name_asc') return a.dataset.name.localeCompare(b.dataset.name, 'th');
+                return 0;
+            });
+
+            cards.forEach(card => grid.appendChild(card));
+            currentPage = 1;
+            renderPage();
+        }
+
+        function filterRestaurants() {
+            currentPage = 1;
+            renderPage();
+        }
+
+        function renderPage() {
+            const allCards = Array.from(document.querySelectorAll('.restaurant-card.searchable'));
+            const filtered = getFilteredCards();
+
+            allCards.forEach(card => card.style.display = 'none');
+
+            const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+            if (currentPage > totalPages) currentPage = totalPages;
+            const startIndex = (currentPage - 1) * PAGE_SIZE;
+            const pageCards = filtered.slice(startIndex, startIndex + PAGE_SIZE);
+            pageCards.forEach(card => card.style.display = '');
+
+            document.getElementById('noResults').style.display = filtered.length === 0 ? 'block' : 'none';
+
+            renderPaginationButtons(totalPages);
+        }
+
+        function renderPaginationButtons(totalPages) {
+            const container = document.getElementById('pagination');
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '‹';
+            prevBtn.className = 'page-btn';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { currentPage--; renderPage(); };
+            container.appendChild(prevBtn);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                btn.onclick = () => { currentPage = i; renderPage(); };
+                container.appendChild(btn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '›';
+            nextBtn.className = 'page-btn';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { currentPage++; renderPage(); };
+            container.appendChild(nextBtn);
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('starFilter').value = '1';
+            document.getElementById('sentimentFilter').value = 'all';
+            currentPage = 1;
+            renderPage();
+        }
+
+        renderPage();
+    </script>
+
+</body>
+</html>

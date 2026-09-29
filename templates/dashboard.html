@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='chart.js') }}"></script>
+</head>
+<body>
+
+    {% include '_sidebar.html' %}
+    <div class="main-content">
+        <div class="page-title-row">
+            <div class="page-icon-box">🏪</div>
+            <div class="page-title-text">
+                <h1>แดชบอร์ดวิเคราะห์ร้านอาหาร</h1>
+                <p>📍 จังหวัดนครราชสีมา</p>
+            </div>
+        </div>
+
+        <div class="charts-row-3">
+            <div class="chart-card">
+                <h3>ภาพรวมความคิดเห็น</h3>
+                <div class="donut-summary">
+                    <div class="donut-chart-wrap">
+                        <canvas id="pieChart"></canvas>
+                        <div class="donut-center-text">
+                            <div class="donut-pct">{{ pos_pct }}%</div>
+                            <div class="donut-label">Positive</div>
+                        </div>
+                    </div>
+                    <div class="donut-legend">
+                        <div class="legend-row">
+                            <span class="dot" style="background:#22c55e;"></span>
+                            <span class="legend-label">Positive</span>
+                            <span class="legend-pct">{{ pos_pct }}%</span>
+                        </div>
+                        <div class="legend-count">{{ pos_count }} รีวิว</div>
+                        <hr>
+                        <div class="legend-row">
+                            <span class="dot" style="background:#eab308;"></span>
+                            <span class="legend-label">Neutral</span>
+                            <span class="legend-pct">{{ (neu_count / total_reviews * 100) | round(0) }}%</span>
+                        </div>
+                        <div class="legend-count">{{ neu_count }} รีวิว</div>
+                        <hr>
+                        <div class="legend-row">
+                            <span class="dot" style="background:#ef4444;"></span>
+                            <span class="legend-label">Negative</span>
+                            <span class="legend-pct">{{ (neg_count / total_reviews * 100) | round(0) }}%</span>
+                        </div>
+                        <div class="legend-count">{{ neg_count }} รีวิว</div>
+                    </div>
+                </div>
+                <p class="donut-total">จากทั้งหมด {{ total_reviews }} รีวิว</p>
+            </div>
+
+            <div class="chart-card">
+                <h3>Top Keywords</h3>
+                {% set kw_icons = ['😋','🍜','💰','⏰','💸'] %}
+                {% for word, count in common_words[:5] %}
+                <div class="keyword-icon-row">
+                    <span class="kw-icon">{{ kw_icons[loop.index0] if loop.index0 < 5 else '🔸' }}</span>
+                    <span>{{ word }}</span>
+                    <span class="count">{{ count }} รีวิว</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="chart-card">
+                <h3>คำที่พบบ่อย</h3>
+                <div class="keyword-tags">
+                    {% set palette = ['#7c4a26','#d97706','#dc2626','#4a3728','#b8875a','#92725a','#a16207'] %}
+                    {% for word, count in common_words %}
+                    <div class="keyword-tag" style="font-size: {{ 13 + (count / common_words[0][1] * 22) | round(0) }}px; color: {{ palette[loop.index0 % palette|length] }};">{{ word }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-row" style="margin-top: 20px;">
+            <div class="chart-card" style="flex:1.1;">
+                <h3>แผนที่ร้านอาหารในเมืองนครราชสีมา</h3>
+                <div id="restaurants-map" class="restaurants-map interactive-map" data-map-markers="restaurant-map-data" data-map-zoom="13" role="application" aria-label="แผนที่ร้านอาหารในเมืองนครราชสีมา">
+                    <div class="map-controls" aria-label="ควบคุมแผนที่">
+                        <button type="button" data-map-action="zoom-in" aria-label="ซูมเข้า">+</button>
+                        <button type="button" data-map-action="zoom-out" aria-label="ซูมออก">−</button>
+                        <button type="button" data-map-action="recenter" aria-label="จัดแผนที่ให้อยู่กึ่งกลาง">⌖</button>
+                    </div>
+                    <div class="map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a></div>
+                    <div class="map-load-message" hidden>โหลดแผนที่ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต</div>
+                </div>
+                <div class="map-legend"><span><i class="map-dot positive"></i> Positive</span><span><i class="map-dot neutral"></i> Neutral</span><span><i class="map-dot negative"></i> Negative</span></div>
+                <p class="map-address-text">แตะหมุดเพื่อดูคะแนนและเปิดหน้าวิเคราะห์ร้าน ({{ map_restaurants|length }} ร้านมีพิกัด)</p>
+            </div>
+            <div class="chart-card" style="flex:1.4;">
+                <div class="chart-card-header-row">
+                    <h3>ร้านอาหารยอดนิยม</h3>
+                    <a href="/restaurants" class="view-all-link">ดูทั้งหมด →</a>
+                </div>
+                <div class="restaurant-cards">
+                    {% for r in top_restaurants %}
+                    <a class="mini-card" href="/restaurant/{{ r.restaurant_name }}">
+                        <div class="mini-card-photo">
+                            {% if r.photo_url and r.photo_url == r.photo_url %}
+                            <img src="{{ r.photo_url }}" alt="{{ r.restaurant_name }}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">
+                            {% else %}
+                            🍽️
+                            {% endif %}
+                        </div>
+                        <div class="name">{{ r.restaurant_name }}</div>
+                        <div class="score">⭐ {{ r.stars }}   <span style="color:#22c55e;">{{ r.overall_pos | round(0) }}%</span> Positive</div>
+                        <div class="mini-card-reviews">{{ r.total_reviews }} รีวิว</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-row" style="margin-top: 20px;">
+            <div class="chart-card">
+                <h3>สรุปผลการวิเคราะห์ความคิดเห็น</h3>
+                <div class="summary-box">
+                    <div class="summary-icon">🤖</div>
+                    <ul class="summary-list">
+                        <li>😊 ร้านอาหารในโคราชได้รับความคิดเห็นเชิงบวกเป็นส่วนใหญ่ {{ pos_pct }}%</li>
+                        <li>👍 ลูกค้าพึงพอใจด้าน{{ aspect_labels[aspect_values.index(aspect_values | max)] }}มากที่สุด</li>
+                        <li>⚠️ ควรปรับปรุงเรื่อง{{ aspect_labels[aspect_values.index(aspect_values | min)] }}ให้ดีขึ้น</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>ความคิดเห็นแยกตามหมวดหมู่</h3>
+                <div class="donut-row">
+                    {% for label in aspect_labels %}
+                    <div class="donut-item">
+                        <canvas id="donut{{ loop.index }}" width="80" height="80"></canvas>
+                        <div class="donut-item-label">{{ label }}</div>
+                        <div style="color:#22c55e; font-weight:bold;">{{ aspect_values[loop.index0] }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script id="restaurant-map-data" type="application/json">{{ map_restaurants | tojson }}</script>
+    <script src="{{ url_for('static', filename='simple-map.js') }}"></script>
+    <script>
+        new Chart(document.getElementById('pieChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [{{ pos_count }}, {{ neu_count }}, {{ neg_count }}],
+                    backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '75%',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        const aspectLabels = {{ aspect_labels | tojson }};
+        const aspectValues = {{ aspect_values | tojson }};
+        aspectLabels.forEach(function(label, i) {
+            new Chart(document.getElementById('donut' + (i + 1)), {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [aspectValues[i], 100 - aspectValues[i]],
+                        backgroundColor: ['#22c55e', '#f0e4d0'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

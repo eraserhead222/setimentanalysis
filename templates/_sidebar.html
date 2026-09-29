@@ -1,0 +1,23 @@
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-circle">🍴</div>
+        <h2>KORAT DINING</h2>
+        <h3>SENTIMENT</h3>
+    </div>
+    <hr>
+    <nav>
+        <a href="/" class="{{ 'active' if request.path == '/' }}"><span class="nav-icon">▦</span>Dashboard</a>
+        <a href="/search" class="{{ 'active' if request.path == '/search' }}"><span class="nav-icon">🔍</span>Search &amp; Filter</a>
+        <a href="/restaurants" class="{{ 'active' if request.path.startswith('/restaurant') }}"><span class="nav-icon">🏪</span>restaurant</a>
+        <a href="/review" class="{{ 'active' if request.path == '/review' }}"><span class="nav-icon">💬</span>Review</a>
+        <a href="/analysis" class="{{ 'active' if request.path == '/analysis' }}"><span class="nav-icon">📈</span>Analysis</a>
+        <a href="/contact" class="{{ 'active' if request.path == '/contact' }}"><span class="nav-icon">👤</span>Contact</a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-footer-badge">
+            <div class="sidebar-footer-icon">🏛️</div>
+            <div class="footer-title">โคราชบ้านเอ็ง</div>
+            <div class="footer-sub">เทศบาลนครราชสีมา</div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ name }} - Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='chart.js') }}"></script>
+</head>
+<body>
+
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+
+        <div class="detail-header-row">
+            <div class="page-title-row" style="margin-bottom:0;">
+                <div class="page-icon-box">🏪</div>
+                <div class="page-title-text">
+                    <h1>วิเคราะห์ความรู้สึกร้านอาหาร</h1>
+                    <p>ข้อมูลและภาพรวมความคิดเห็นของร้านอาหาร</p>
+                </div>
+            </div>
+            <div class="detail-header-btns">
+                <a href="/restaurants" class="back-btn">← กลับไปหน้าค้นหา</a>
+                <button class="download-btn">⬇️ ดาวน์โหลดรายงาน</button>
+            </div>
+        </div>
+
+        <!-- ============ ข้อมูลร้าน + สรุปคะแนน ============ -->
+        <div class="chart-card restaurant-header-card">
+            <div class="restaurant-photo-placeholder">
+                {% if photo_url %}
+                <img src="{{ photo_url }}" alt="รูปหน้าปก {{ name }}">
+                {% else %}
+                🍽️<br><span style="font-size:12px;">ยังไม่มีรูปหน้าปก</span>
+                {% endif %}
+            </div>
+            <div class="restaurant-basic-info">
+                <h2>{{ name }}</h2>
+                <div class="cuisine-tag">ประเภทร้าน: รอข้อมูล</div>
+                <div class="basic-info-row">📍 อ.เมืองนครราชสีมา จ.นครราชสีมา</div>
+                <div class="basic-info-row">🕐 เวลาเปิด-ปิด: รอข้อมูล</div>
+                <div class="action-buttons-row">
+                    <button class="fav-btn" type="button">🤍 บันทึก</button>
+                    <button class="share-btn" type="button">🔗 แชร์</button>
+                </div>
+            </div>
+            <div class="restaurant-summary-stats">
+                <div class="summary-stat-item">
+                    <div class="summary-stat-value">⭐ {{ avg_stars }}</div>
+                    <div class="summary-stat-label">คะแนนเฉลี่ย จาก {{ total }} รีวิว</div>
+                </div>
+                <div class="summary-stat-item">
+                    <div class="summary-stat-value">😊 {{ pos_pct }}%</div>
+                    <div class="summary-stat-label">Sentiment โดยรวม</div>
+                </div>
+                <div class="summary-stat-item">
+                    <div class="summary-stat-value">💬 {{ total }}</div>
+                    <div class="summary-stat-label">จำนวนรีวิวทั้งหมด</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ แท็บเมนูย่อย ============ -->
+        <div class="detail-tabs">
+            <span class="detail-tab active" onclick="showTab('overview', this)">📊 ภาพรวม</span>
+            <span class="detail-tab" onclick="showTab('reviews', this)">💬 รีวิว</span>
+            <span class="detail-tab" onclick="showTab('photos', this)">🖼️ รูปภาพ</span>
+            <span class="detail-tab" onclick="showTab('info', this)">📷 ข้อมูลร้านอาหาร</span>
+            <span class="detail-tab" onclick="showTab('compare', this)">📋 เปรียบเทียบ</span>
+        </div>
+
+        <!-- ============ TAB: ภาพรวม ============ -->
+        <div id="tab-overview" class="tab-content">
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3>สรุป Sentiment</h3>
+                    <div class="donut-summary">
+                        <div class="donut-chart-wrap">
+                            <canvas id="detailDonut"></canvas>
+                            <div class="donut-center-text">
+                                <div class="donut-pct" style="font-size:16px;">{{ pos_pct }}%</div>
+                                <div class="donut-label">Positive</div>
+                            </div>
+                        </div>
+                        <div class="donut-legend">
+                            <div class="legend-row"><span class="dot" style="background:#22c55e;"></span><span class="legend-label">Positive</span><span class="legend-pct">{{ pos_pct }}%</span></div>
+                            <div class="legend-count">{{ pos_count }} รีวิว</div>
+                            <hr>
+                            <div class="legend-row"><span class="dot" style="background:#eab308;"></span><span class="legend-label">Neutral</span><span class="legend-pct">{{ neu_pct }}%</span></div>
+                            <div class="legend-count">{{ neu_count }} รีวิว</div>
+                            <hr>
+                            <div class="legend-row"><span class="dot" style="background:#ef4444;"></span><span class="legend-label">Negative</span><span class="legend-pct">{{ neg_pct }}%</span></div>
+                            <div class="legend-count">{{ neg_count }} รีวิว</div>
+                        </div>
+                    </div>
+                    <p class="donut-total">จากทั้งหมด {{ total }} รีวิว</p>
+                </div>
+
+                <div class="chart-card">
+                    <h3>คะแนนรีวิวแยกตามระดับ</h3>
+                    {% for s in star_dist %}
+                    <div class="star-bar-row">
+                        <span class="star-bar-label">{{ s.star }} ★</span>
+                        <div class="star-bar-track"><div class="star-bar-fill" style="width:{{ s.pct }}%;"></div></div>
+                        <span class="star-bar-count">{{ s.count }} ({{ s.pct }}%)</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="chart-card">
+                    <h3>ตำแหน่งที่ตั้ง</h3>
+                    {% if lat is not none and lng is not none %}
+                    <div id="restaurant-map" class="restaurant-map interactive-map" data-map-lat="{{ lat }}" data-map-lng="{{ lng }}" data-map-name="{{ name }}" data-map-zoom="16" role="application" aria-label="แผนที่ตำแหน่ง {{ name }}">
+                        <div class="map-controls" aria-label="ควบคุมแผนที่">
+                            <button type="button" data-map-action="zoom-in" aria-label="ซูมเข้า">+</button>
+                            <button type="button" data-map-action="zoom-out" aria-label="ซูมออก">−</button>
+                            <button type="button" data-map-action="recenter" aria-label="จัดแผนที่ให้อยู่กึ่งกลาง">⌖</button>
+                        </div>
+                        <div class="map-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a></div>
+                        <div class="map-load-message" hidden>โหลดแผนที่ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต</div>
+                    </div>
+                    <p class="map-address-text">{{ address if address else 'อ.เมืองนครราชสีมา จ.นครราชสีมา' }}</p>
+                    <a href="https://www.google.com/maps/dir/?api=1&amp;destination={{ lat }},{{ lng }}" target="_blank" rel="noopener noreferrer" class="nav-btn">🧭 นำทาง</a>
+                    {% else %}
+                    <div class="placeholder-box" style="height:160px;">🗺️ ร้านนี้ยังไม่มีข้อมูลพิกัด</div>
+                    <button class="nav-btn-disabled" disabled>🧭 นำทาง (รอข้อมูลพิกัด)</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="charts-row" style="margin-top:20px;">
+                <div class="chart-card">
+                    <h3>ความคิดเห็นแยกตามหมวดหมู่</h3>
+                    {% for a in aspect_data %}
+                    <div class="aspect-bar-row">
+                        <span class="aspect-bar-label">{{ a.label }}</span>
+                        <div class="star-bar-track"><div class="star-bar-fill" style="width:{{ a.pos }}%; background:#22c55e;"></div></div>
+                        <span class="star-bar-count">{{ a.pos }}%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="chart-card">
+                    <h3>คำที่ถูกพูดถึงบ่อย</h3>
+                    <div class="keyword-tags">
+                        {% for word, count in common_words %}
+                        <div class="keyword-tag" style="font-size:{{ 12 + (count * 2) }}px;">{{ word }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>รีวิวร้านอาหาร</h3>
+                    {% for r in sample_reviews %}
+                    <div class="mini-review-item">
+                        <span class="review-avatar">👤</span>
+                        <div>
+                            <div class="review-stars" style="font-size:12px;">{% for i in range(1,6) %}{% if i <= r.stars %}★{% else %}☆{% endif %}{% endfor %}</div>
+                            <div style="font-size:12px; color:#4a3728;">{{ r.text }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <a href="/review" class="view-all-reviews-btn">ดูรีวิวทั้งหมด →</a>
+                </div>
+
+                <div class="chart-card">
+                    <h3>ข้อมูลเพิ่มเติม</h3>
+                    <table class="info-table info-table-compact">
+                        <tr><td>ประเภทร้าน</td><td>รอข้อมูล</td></tr>
+                        <tr><td>ช่วงราคา</td><td>รอข้อมูล</td></tr>
+                        <tr><td>เบอร์โทร</td><td>รอข้อมูล</td></tr>
+                        <tr><td>ช่องทางออนไลน์</td><td>รอข้อมูล</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ TAB: ความคิดเห็น (รีวิวทั้งหมดของร้านนี้) ============ -->
+        <div id="tab-reviews" class="tab-content" style="display:none;">
+            <div class="chart-card">
+                <h3>รีวิวทั้งหมดของร้านนี้</h3>
+                <p style="color:#92725a; font-size:13px;">ดูรีวิวแบบเต็มพร้อมตัวกรองได้ที่หน้า <a href="/review">Review</a></p>
+            </div>
+        </div>
+
+        <!-- ============ TAB: รูปภาพ ============ -->
+        <div id="tab-photos" class="tab-content" style="display:none;">
+            <div class="chart-card">
+                <h3>รูปภาพร้านอาหาร</h3>
+                {% if gallery_photos %}
+                <div class="restaurant-gallery">
+                    {% for photo in gallery_photos %}
+                    <a href="{{ photo }}" target="_blank" rel="noopener noreferrer">
+                        <img src="{{ photo }}" alt="รูปที่ {{ loop.index }} ของ {{ name }}" loading="lazy">
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="placeholder-box" style="height:200px;">
+                    🖼️ ร้านนี้ยังไม่มีรูปภาพ
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ============ TAB: เปรียบเทียบ ============ -->
+        <div id="tab-compare" class="tab-content" style="display:none;">
+            <div class="chart-card">
+                <h3>เปรียบเทียบร้านอาหาร</h3>
+                <p style="color:#92725a; font-size:13px;">เลือกร้านอื่นเพื่อเปรียบเทียบคะแนนและ Sentiment ได้ที่หน้า <a href="/restaurants">Search &amp; Filter</a></p>
+            </div>
+        </div>
+
+        <!-- ============ TAB: ข้อมูลร้านอาหาร ============ -->
+        <div id="tab-info" class="tab-content" style="display:none;">
+            <div class="chart-card">
+                <h3>ข้อมูลเพิ่มเติมของร้าน</h3>
+                <table class="info-table">
+                    <tr><td>ประเภทร้าน</td><td>รอข้อมูล</td></tr>
+                    <tr><td>ช่วงราคา</td><td>รอข้อมูล</td></tr>
+                    <tr><td>เบอร์โทรศัพท์</td><td>รอข้อมูล</td></tr>
+                    <tr><td>ช่องทางออนไลน์</td><td>รอข้อมูล</td></tr>
+                    <tr><td>ที่อยู่</td><td>อ.เมืองนครราชสีมา จ.นครราชสีมา</td></tr>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function showTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.getElementById('tab-' + tabName).style.display = 'block';
+            document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        new Chart(document.getElementById('detailDonut'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [{{ pos_count }}, {{ neu_count }}, {{ neg_count }}],
+                    backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '75%', plugins: { legend: { display: false } } }
+        });
+    </script>
+    {% if lat is not none and lng is not none %}
+    <script src="{{ url_for('static', filename='simple-map.js') }}"></script>
+    {% endif %}
+
+</body>
+</html>

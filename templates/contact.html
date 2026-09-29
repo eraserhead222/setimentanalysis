@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Contact - Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-title-row">
+            <div class="page-icon-box">💬</div>
+            <div class="page-title-text">
+                <h1>Contact US</h1>
+                <p>ติดต่อเรา</p>
+            </div>
+        </div>
+        <p class="contact-intro">หากคุณมีข้อสงสัย ข้อเสนอแนะ หรือต้องการสอบถามข้อมูลเพิ่มเติม สามารถติดต่อเราได้ผ่านช่องทางด้านล่าง</p>
+
+        <div class="contact-layout">
+
+            <!-- ============ ฝั่งซ้าย: ฟอร์มส่งข้อความ ============ -->
+            <div class="chart-card contact-form-card">
+                <h3>📩 ส่งข้อความถึงเรา</h3>
+
+                {% if submitted %}
+                <div class="success-banner">✅ ส่งข้อความเรียบร้อยแล้ว ทีมงานจะติดต่อกลับโดยเร็วที่สุด</div>
+                {% endif %}
+
+                <form method="POST" action="/contact">
+                    <label>ชื่อของคุณ</label>
+                    <input type="text" name="name" class="contact-input" placeholder="กรุณากรอกชื่อของคุณ" required>
+
+                    <label>E-Mail</label>
+                    <input type="email" name="email" class="contact-input" placeholder="กรุณากรอกอีเมลของคุณ" required>
+
+                    <label>หัวข้อ</label>
+                    <select name="topic" class="contact-input" required>
+                        <option value="" disabled selected>กรุณาเลือกหัวข้อ</option>
+                        <option value="general">สอบถามข้อมูลทั่วไป</option>
+                        <option value="website_bug">แจ้งปัญหาการใช้งานเว็บไซต์</option>
+                        <option value="restaurant_data">แจ้งปัญหาข้อมูลร้านอาหาร</option>
+                        <option value="review_issue">แจ้งปัญหาการรีวิว</option>
+                        <option value="analysis_question">สอบถามเกี่ยวกับการวิเคราะห์ความคิดเห็น</option>
+                        <option value="suggestion">เสนอแนะการปรับปรุงเว็บไซต์</option>
+                        <option value="add_restaurant">แจ้งข้อมูลร้านอาหารเพิ่มเติม</option>
+                        <option value="other">อื่นๆ</option>
+                    </select>
+
+                    <label>ข้อความ</label>
+                    <textarea name="message" class="contact-input contact-textarea" placeholder="กรุณาพิมพ์ข้อความของคุณที่นี่" required></textarea>
+
+                    <button type="submit" class="contact-submit-btn">📨 ส่งข้อความ</button>
+                </form>
+            </div>
+
+            <!-- ============ ฝั่งขวา: ช่องทางติดต่อ + แผนที่ ============ -->
+            <div class="contact-side">
+                <div class="chart-card">
+                    <h3>📞 ช่องทางการติดต่อ</h3>
+                    <div class="contact-info-row">
+                        <span class="contact-icon">📞</span>
+                        <div>
+                            <div class="contact-info-label">โทรศัพท์</div>
+                            <div class="contact-info-value">065-248-4623</div>
+                            <div class="contact-info-value">081-130-0811</div>
+                        </div>
+                    </div>
+                    <div class="contact-info-row">
+                        <span class="contact-icon">✉️</span>
+                        <div>
+                            <div class="contact-info-label">E-mail</div>
+                            <div class="contact-info-value">6640213222@nrru.ac.th</div>
+                            <div class="contact-info-value">6640213224@nrru.ac.th</div>
+                        </div>
+                    </div>
+                    <div class="contact-info-row">
+                        <span class="contact-icon">📍</span>
+                        <div>
+                            <div class="contact-info-label">ที่อยู่</div>
+                            <div class="contact-info-value">
+                                มหาวิทยาลัยราชภัฏนครราชสีมา<br>
+                                ถนนสุรนารายณ์ ตำบลในเมือง<br>
+                                อำเภอเมืองนครราชสีมา จังหวัดนครราชสีมา 30000
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-card" style="margin-top:20px;">
+                    <h3>🗺️ แผนที่การเดินทาง</h3>
+                    <div class="placeholder-box" style="height:180px;">
+                        🗺️ แผนที่การเดินทาง<br>
+                        (รอเชื่อมต่อ Google Maps)
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

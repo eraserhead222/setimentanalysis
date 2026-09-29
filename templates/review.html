@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Review - Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-header">
+            <div class="page-title-row" style="margin-bottom:0;">
+                <div class="page-icon-box">💬</div>
+                <div class="page-title-text">
+                    <h1>Review</h1>
+                    <p>ความคิดเห็นและรีวิวทั้งหมดของลูกค้า</p>
+                </div>
+            </div>
+            <div class="header-badge">
+                <span class="badge-icon">💬</span>
+                <div>
+                    รีวิวทั้งหมด
+                    <span class="badge-number">{{ total }} รีวิว</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="listing-box">
+
+            <div class="listing-search-row">
+                <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อร้าน, ประเภทอาหาร, คำสำคัญ..." oninput="applyFilters()">
+                <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+                    <option value="latest">เรียงตาม: ล่าสุด</option>
+                    <option value="stars_desc">เรียงตาม: ดาวมาก-น้อย</option>
+                    <option value="stars_asc">เรียงตาม: ดาวน้อย-มาก</option>
+                </select>
+            </div>
+
+            <!-- ปุ่มกรอง Sentiment พร้อม % -->
+            <div class="sentiment-summary-row">
+                <div class="sentiment-btn active" data-value="all" onclick="setSentimentFilter('all', this)">
+                    ทั้งหมด<span class="sentiment-count">{{ total }}</span>
+                </div>
+                <div class="sentiment-btn" data-value="pos" onclick="setSentimentFilter('pos', this)">
+                    <span class="dot-icon" style="background:#22c55e;"></span> Positive
+                    <span class="sentiment-count">{{ pos_count }} ({{ pos_pct }}%)</span>
+                </div>
+                <div class="sentiment-btn" data-value="neu" onclick="setSentimentFilter('neu', this)">
+                    <span class="dot-icon" style="background:#eab308;"></span> Neutral
+                    <span class="sentiment-count">{{ neu_count }} ({{ neu_pct }}%)</span>
+                </div>
+                <div class="sentiment-btn" data-value="neg" onclick="setSentimentFilter('neg', this)">
+                    <span class="dot-icon" style="background:#ef4444;"></span> Negative
+                    <span class="sentiment-count">{{ neg_count }} ({{ neg_pct }}%)</span>
+                </div>
+            </div>
+
+            <div class="review-layout">
+
+                <!-- ============ ฝั่งซ้าย: ตัวกรองเพิ่มเติม ============ -->
+                <div class="filter-panel">
+                    <h3>ตัวกรองเพิ่มเติม</h3>
+
+                    <label>ให้คะแนน</label>
+                    <div class="filter-chip-row" id="starFilterRow">
+                        <span class="filter-chip star-chip active" data-value="0" onclick="setStarFilter(0, this)">ทั้งหมด</span>
+                        <span class="filter-chip star-chip" data-value="5" onclick="setStarFilter(5, this)">★5</span>
+                        <span class="filter-chip star-chip" data-value="4" onclick="setStarFilter(4, this)">★4</span>
+                        <span class="filter-chip star-chip" data-value="3" onclick="setStarFilter(3, this)">★3</span>
+                        <span class="filter-chip star-chip" data-value="2" onclick="setStarFilter(2, this)">★2</span>
+                        <span class="filter-chip star-chip" data-value="1" onclick="setStarFilter(1, this)">★1</span>
+                    </div>
+
+                    <label>หัวข้อที่พูดถึง</label>
+                    <div class="aspect-checkbox-list">
+                        <label class="checkbox-row"><input type="checkbox" class="aspectCheck" value="รสชาติ" onchange="applyFilters()"> รสชาติอาหาร</label>
+                        <label class="checkbox-row"><input type="checkbox" class="aspectCheck" value="บริการ" onchange="applyFilters()"> การบริการ</label>
+                        <label class="checkbox-row"><input type="checkbox" class="aspectCheck" value="ความสะอาด" onchange="applyFilters()"> ความสะอาด</label>
+                        <label class="checkbox-row"><input type="checkbox" class="aspectCheck" value="ราคา" onchange="applyFilters()"> ราคา</label>
+                    </div>
+
+                    <button class="reset-btn" onclick="resetFilters()">🔄 รีเซ็ตตัวกรอง</button>
+                </div>
+
+                <!-- ============ ฝั่งขวา: รายการรีวิว ============ -->
+                <div class="review-list-wrap">
+                    <div id="reviewList">
+                        {% for r in reviews %}
+                        <div class="review-item searchable"
+                             data-text="{{ r.text|lower }}"
+                             data-restaurant="{{ r.restaurant|lower }}"
+                             data-stars="{{ r.stars }}"
+                             data-sentiment="{{ r.sentiment }}"
+                             data-aspects="{{ 'รสชาติ,' if r.has_รสชาติ }}{{ 'บริการ,' if r.has_บริการ }}{{ 'ความสะอาด,' if r.has_ความสะอาด }}{{ 'ราคา,' if r.has_ราคา }}">
+                            <div class="review-avatar">{{ r.avatar }}</div>
+                            <div class="review-body-wrap">
+                                <div class="review-stars">
+                                    {% for i in range(1,6) %}{% if i <= r.stars %}★{% else %}☆{% endif %}{% endfor %}
+                                    <span class="review-restaurant-name">{{ r.restaurant }}</span>
+                                </div>
+                                <div class="review-text">{{ r.text }}</div>
+                                <div class="review-tags">
+                                    {% if r.has_รสชาติ %}<span class="review-tag">รสชาติอาหาร</span>{% endif %}
+                                    {% if r.has_บริการ %}<span class="review-tag">การบริการ</span>{% endif %}
+                                    {% if r.has_ความสะอาด %}<span class="review-tag">ความสะอาด</span>{% endif %}
+                                    {% if r.has_ราคา %}<span class="review-tag">ราคา</span>{% endif %}
+                                </div>
+                            </div>
+                            <div class="review-sentiment-badge sentiment-{{ r.sentiment }}">
+                                {% if r.sentiment == 'pos' %}😊 Positive{% elif r.sentiment == 'neu' %}😐 Neutral{% else %}☹️ Negative{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <p id="noResults" class="no-results" style="display:none;">ไม่พบรีวิวที่ตรงกับตัวกรอง</p>
+
+                    <div class="pagination" id="pagination"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PAGE_SIZE = 8;
+        let currentPage = 1;
+        let currentSentiment = 'all';
+        let currentStar = 0;
+
+        function setSentimentFilter(value, el) {
+            currentSentiment = value;
+            document.querySelectorAll('.sentiment-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function setStarFilter(value, el) {
+            currentStar = value;
+            document.querySelectorAll('.star-chip').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function getCheckedAspects() {
+            return Array.from(document.querySelectorAll('.aspectCheck:checked')).map(c => c.value);
+        }
+
+        function getFiltered() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const checkedAspects = getCheckedAspects();
+            const allItems = Array.from(document.querySelectorAll('.review-item.searchable'));
+
+            return allItems.filter(item => {
+                const text = item.dataset.text;
+                const restaurant = item.dataset.restaurant;
+                const stars = parseInt(item.dataset.stars);
+                const sentiment = item.dataset.sentiment;
+                const aspects = item.dataset.aspects;
+
+                const matchKeyword = text.includes(keyword) || restaurant.includes(keyword);
+                const matchSentiment = currentSentiment === 'all' || sentiment === currentSentiment;
+                const matchStar = currentStar === 0 || stars === currentStar;
+                const matchAspects = checkedAspects.length === 0 || checkedAspects.every(a => aspects.includes(a));
+
+                return matchKeyword && matchSentiment && matchStar && matchAspects;
+            });
+        }
+
+        function applyFilters() {
+            currentPage = 1;
+            renderPage();
+        }
+
+        function renderPage() {
+            const allItems = Array.from(document.querySelectorAll('.review-item.searchable'));
+            let filtered = getFiltered();
+
+            const sortBy = document.getElementById('sortSelect').value;
+            if (sortBy === 'stars_desc') filtered.sort((a, b) => b.dataset.stars - a.dataset.stars);
+            if (sortBy === 'stars_asc') filtered.sort((a, b) => a.dataset.stars - b.dataset.stars);
+
+            allItems.forEach(item => item.style.display = 'none');
+
+            const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+            if (currentPage > totalPages) currentPage = totalPages;
+            const startIndex = (currentPage - 1) * PAGE_SIZE;
+            const pageItems = filtered.slice(startIndex, startIndex + PAGE_SIZE);
+
+            const list = document.getElementById('reviewList');
+            pageItems.forEach(item => {
+                item.style.display = '';
+                list.appendChild(item);
+            });
+
+            document.getElementById('noResults').style.display = filtered.length === 0 ? 'block' : 'none';
+            renderPaginationButtons(totalPages);
+        }
+
+        function renderPaginationButtons(totalPages) {
+            const container = document.getElementById('pagination');
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '‹';
+            prevBtn.className = 'page-btn';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { currentPage--; renderPage(); };
+            container.appendChild(prevBtn);
+
+            const maxButtons = 6;
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                btn.onclick = () => { currentPage = i; renderPage(); };
+                container.appendChild(btn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '›';
+            nextBtn.className = 'page-btn';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { currentPage++; renderPage(); };
+            container.appendChild(nextBtn);
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('sortSelect').value = 'latest';
+            document.querySelectorAll('.aspectCheck').forEach(c => c.checked = false);
+            currentSentiment = 'all';
+            currentStar = 0;
+            document.querySelectorAll('.sentiment-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.sentiment-btn[data-value="all"]').classList.add('active');
+            document.querySelectorAll('.star-chip').forEach(b => b.classList.remove('active'));
+            document.querySelector('.star-chip[data-value="0"]').classList.add('active');
+            currentPage = 1;
+            renderPage();
+        }
+
+        renderPage();
+    </script>
+
+</body>
+</html>

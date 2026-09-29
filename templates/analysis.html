@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Analysis - Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='chart.js') }}"></script>
+</head>
+<body>
+
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-title-row">
+            <div class="page-icon-box">📊</div>
+            <div class="page-title-text">
+                <h1>Analysis</h1>
+                <p>การวิเคราะห์ข้อมูลและสถิติภาพรวม</p>
+            </div>
+        </div>
+
+        <!-- ============ 1-4: การ์ดสรุปตัวเลข 4 อัน ============ -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon">💬</div>
+                <div>
+                    <div class="label">จำนวนรีวิวทั้งหมด</div>
+                    <div class="value">{{ total }}</div>
+                    <div class="label">รีวิว</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">{{ dominant_icon }}</div>
+                <div>
+                    <div class="label">อัตราความคิดเห็นเชิงบวก</div>
+                    <div class="value">{{ dominant_pct }}%</div>
+                    <div class="label">{{ dominant_label }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div>
+                    <div class="label">คะแนนเฉลี่ยโดยรวม</div>
+                    <div class="value">{{ avg_stars }}</div>
+                    <div class="label">จาก 5</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🏪</div>
+                <div>
+                    <div class="label">จำนวนร้านอาหาร</div>
+                    <div class="value">{{ total_restaurants }}</div>
+                    <div class="label">ร้าน</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 5-7: กราฟแท่งหมวดหมู่ / โดนัท / Top Keywords ============ -->
+        <div class="analysis-charts-row">
+            <div class="chart-card">
+                <h3>ความคิดเห็นแยกตามประเภทร้านอาหาร</h3>
+                <canvas id="aspectBarChart" style="max-height:220px;"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>สัดส่วนความคิดเห็น</h3>
+                <div class="donut-summary" style="flex-direction:column; align-items:center; gap:16px;">
+                    <div class="donut-chart-wrap">
+                        <canvas id="analysisDonut"></canvas>
+                        <div class="donut-center-text">
+                            <div class="donut-pct" style="font-size:16px;">{{ total }}</div>
+                            <div class="donut-label">รีวิวทั้งหมด</div>
+                        </div>
+                    </div>
+                    <div class="donut-legend" style="width:100%;">
+                        <div class="legend-row">
+                            <span class="dot" style="background:#22c55e;"></span>
+                            <span class="legend-label">Positive</span>
+                            <span class="legend-pct">{{ pos_pct }}%</span>
+                        </div>
+                        <div class="legend-count">{{ pos_count }} รีวิว</div>
+                        <hr>
+                        <div class="legend-row">
+                            <span class="dot" style="background:#eab308;"></span>
+                            <span class="legend-label">Neutral</span>
+                            <span class="legend-pct">{{ neu_pct }}%</span>
+                        </div>
+                        <div class="legend-count">{{ neu_count }} รีวิว</div>
+                        <hr>
+                        <div class="legend-row">
+                            <span class="dot" style="background:#ef4444;"></span>
+                            <span class="legend-label">Negative</span>
+                            <span class="legend-pct">{{ neg_pct }}%</span>
+                        </div>
+                        <div class="legend-count">{{ neg_count }} รีวิว</div>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>คำที่ถูกกล่าวถึงมากที่สุด</h3>
+                <canvas id="keywordBarChart" style="max-height:220px; max-width:100%;"></canvas>
+            </div>
+        </div>
+
+        <!-- ============ 8-9: ความหนาแน่น (placeholder) + ข้อมูลเชิงลึก ============ -->
+        <div class="charts-row" style="margin-top:20px;">
+            <div class="chart-card">
+                <h3>ความหนาแน่นของรีวิวในพื้นที่</h3>
+                <div class="placeholder-box">
+                    🗺️ แผนที่ความหนาแน่นของรีวิว (Heatmap)<br>
+                    (รอเก็บข้อมูลพิกัด GPS)
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>ข้อมูลเชิงลึกจากการวิเคราะห์</h3>
+                <ul class="insight-list">
+                    <li><span class="insight-icon">📈</span> <span><b>{{ dominant_pct }}%</b> ของรีวิวทั้งหมดเป็นความคิดเห็นเชิง{{ dominant_label }}</span></li>
+                    <li><span class="insight-icon">👍</span> <span>ลูกค้าพึงพอใจด้าน <b>{{ best_aspect.label }}</b> มากที่สุด ({{ best_aspect.pos }}% Positive)</span></li>
+                    <li><span class="insight-icon">⚠️</span> <span>ควรปรับปรุงด้าน <b>{{ worst_aspect.label }}</b> ({{ worst_aspect.pos }}% Positive)</span></li>
+                    <li><span class="insight-icon">🏪</span> <span>ร้าน <b>{{ top_restaurant_row }}</b> มีรีวิวมากที่สุด ({{ top_restaurant_count }} รีวิว)</span></li>
+                    <li><span class="insight-icon">🍴</span> <span>คำที่ถูกพูดถึงมากที่สุดคือ <b>"{{ top_word[0] }}"</b> ({{ top_word[1] }} ครั้ง)</span></li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        new Chart(document.getElementById('analysisDonut'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [{{ pos_count }}, {{ neu_count }}, {{ neg_count }}],
+                    backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '75%',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        const aspectData = {{ aspect_data | tojson }};
+        new Chart(document.getElementById('aspectBarChart'), {
+            type: 'bar',
+            data: {
+                labels: aspectData.map(a => a.label),
+                datasets: [
+                    { label: 'Positive', data: aspectData.map(a => a.pos), backgroundColor: '#22c55e' },
+                    { label: 'Neutral', data: aspectData.map(a => a.neu), backgroundColor: '#eab308' },
+                    { label: 'Negative', data: aspectData.map(a => a.neg), backgroundColor: '#ef4444' }
+                ]
+            },
+            options: {
+                plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+                scales: { y: { max: 100 } }
+            }
+        });
+
+        const kwLabels = {{ common_words | map(attribute=0) | list | tojson }};
+        const kwValues = {{ common_words | map(attribute=1) | list | tojson }};
+        new Chart(document.getElementById('keywordBarChart'), {
+            type: 'bar',
+            data: {
+                labels: kwLabels,
+                datasets: [{
+                    label: 'จำนวนครั้งที่ถูกพูดถึง',
+                    data: kwValues,
+                    backgroundColor: '#d97706'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Search & Filter - Korat Dining Sentiment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-title-row">
+            <div class="page-icon-box">🔍</div>
+            <div class="page-title-text">
+                <h1>Search &amp; Filter</h1>
+                <p>ค้นหาร้านอาหารในจังหวัดนครราชสีมา</p>
+            </div>
+        </div>
+
+        <div class="search-bar-row">
+            <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อร้าน หรือคำสำคัญ เช่น คาเฟ่, อาหารอร่อย, ชาบู" oninput="filterRestaurants()">
+            <button class="search-btn" onclick="filterRestaurants()">ค้นหา</button>
+        </div>
+
+        <div class="search-layout">
+
+            <!-- ============ ฝั่งซ้าย: ตัวกรอง ============ -->
+            <div class="filter-panel">
+                <div class="filter-panel-header">
+                    <h3>⚙️ ตัวกรอง (Filter)</h3>
+                    <button class="clear-all-link" onclick="resetFilters()">ล้างทั้งหมด</button>
+                </div>
+
+                <label>จังหวัด</label>
+                <select class="filter-select" disabled>
+                    <option>นครราชสีมา</option>
+                </select>
+
+                <label>อำเภอ</label>
+                <select class="filter-select" disabled>
+                    <option>ทั้งหมด (เมืองนครราชสีมา)</option>
+                </select>
+
+                <label>ประเภทร้าน <span class="soon-tag">เร็วๆ นี้</span></label>
+                <div class="filter-chip-row">
+                    <span class="filter-chip disabled">คาเฟ่</span>
+                    <span class="filter-chip disabled">อาหารไทย</span>
+                    <span class="filter-chip disabled">ชาบู/ปิ้งย่าง</span>
+                    <span class="filter-chip disabled">อาหารอีสาน</span>
+                    <span class="filter-chip disabled">อาหารญี่ปุ่น</span>
+                    <span class="filter-chip disabled">อื่นๆ</span>
+                </div>
+
+                <label>คะแนนรีวิวขั้นต่ำ</label>
+                <input type="range" id="starRange" min="1" max="5" step="0.5" value="1" oninput="filterRestaurants()">
+                <div class="range-labels"><span>1.0</span><span>5.0</span></div>
+
+                <label>Sentiment</label>
+                <div class="filter-chip-row">
+                    <span class="filter-chip sentiment-chip active" data-value="all" onclick="setSentiment('all')">ทั้งหมด</span>
+                    <span class="filter-chip sentiment-chip" data-value="high" onclick="setSentiment('high')">Positive สูง</span>
+                    <span class="filter-chip sentiment-chip" data-value="low" onclick="setSentiment('low')">Positive ต่ำ</span>
+                </div>
+
+                <label>ช่วงราคา <span class="soon-tag">เร็วๆ นี้</span></label>
+                <div class="filter-chip-row">
+                    <span class="filter-chip disabled">฿</span>
+                    <span class="filter-chip disabled">฿฿</span>
+                    <span class="filter-chip disabled">฿฿฿</span>
+                    <span class="filter-chip disabled">฿฿฿฿</span>
+                </div>
+
+                <button class="reset-btn" onclick="resetFilters()">🔄 รีเซ็ต</button>
+            </div>
+
+            <!-- ============ ฝั่งขวา: ผลการค้นหา ============ -->
+            <div class="search-results">
+                <div class="results-header">
+                    <span id="resultCount">ผลการค้นหา {{ total_count }} ร้าน</span>
+                    <select class="sort-select">
+                        <option>เรียงตาม: คะแนนรีวิว</option>
+                        <option>เรียงตาม: จำนวนรีวิว</option>
+                        <option>เรียงตาม: ชื่อร้าน</option>
+                    </select>
+                </div>
+
+                <div class="restaurant-grid grid-3col" id="restaurantGrid">
+                    {% for r in restaurants %}
+                    <div class="restaurant-card searchable"
+                         data-name="{{ r.restaurant_name }}"
+                         data-stars="{{ r.stars }}"
+                         data-pos="{{ r.overall_pos }}">
+                        <a href="/restaurant/{{ r.restaurant_name }}" class="restaurant-card-link">
+                        <div class="card-photo-placeholder">
+                            {% if r.photo_url and r.photo_url == r.photo_url %}
+                            <img src="{{ r.photo_url }}" alt="{{ r.restaurant_name }}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">
+                            {% else %}
+                            🍽️
+                            {% endif %}
+                            <span class="heart-icon">♡</span></div>
+                        <div class="restaurant-name">{{ r.restaurant_name }}</div>
+                        <div class="restaurant-score">
+                            ⭐ {{ r.stars }}
+                            <span class="score-value">{{ r.overall_pos | round(0) }}% Positive</span>
+                        </div>
+                        <div class="restaurant-reviews">📍 อ.เมืองนครราชสีมา</div>
+                        <div class="restaurant-reviews">💬 {{ r.total_reviews }} รีวิว</div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <p id="noResults" class="no-results" style="display:none;">ไม่พบร้านอาหารที่ตรงกับคำค้นหา</p>
+
+                <div class="pagination" id="pagination"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const PAGE_SIZE = 6;   // แสดง 6 ร้านต่อหน้า (3 คอลัมน์ x 2 แถว)
+        let currentSentiment = 'all';
+        let currentPage = 1;
+
+        function setSentiment(value) {
+            currentSentiment = value;
+            document.querySelectorAll('.sentiment-chip').forEach(chip => chip.classList.remove('active'));
+            document.querySelector(`.sentiment-chip[data-value="${value}"]`).classList.add('active');
+            currentPage = 1;
+            filterRestaurants();
+        }
+
+        function getFilteredCards() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const minStars = parseFloat(document.getElementById('starRange').value);
+            const allCards = Array.from(document.querySelectorAll('.restaurant-card.searchable'));
+
+            return allCards.filter(card => {
+                const name = card.dataset.name.toLowerCase();
+                const stars = parseFloat(card.dataset.stars);
+                const pos = parseFloat(card.dataset.pos);
+
+                let matchKeyword = name.includes(keyword);
+                let matchStars = stars >= minStars;
+                let matchSentiment = true;
+                if (currentSentiment === 'high') matchSentiment = pos >= 90;
+                if (currentSentiment === 'low') matchSentiment = pos < 90;
+
+                return matchKeyword && matchStars && matchSentiment;
+            });
+        }
+
+        function filterRestaurants() {
+            currentPage = 1;
+            renderPage();
+        }
+
+        function renderPage() {
+            const allCards = Array.from(document.querySelectorAll('.restaurant-card.searchable'));
+            const filtered = getFilteredCards();
+
+            allCards.forEach(card => card.style.display = 'none');
+
+            const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+            if (currentPage > totalPages) currentPage = totalPages;
+            const startIndex = (currentPage - 1) * PAGE_SIZE;
+            const pageCards = filtered.slice(startIndex, startIndex + PAGE_SIZE);
+            pageCards.forEach(card => card.style.display = '');
+
+            document.getElementById('resultCount').textContent = `ผลการค้นหา ${filtered.length} ร้าน`;
+            document.getElementById('noResults').style.display = filtered.length === 0 ? 'block' : 'none';
+
+            renderPaginationButtons(totalPages);
+        }
+
+        function renderPaginationButtons(totalPages) {
+            const container = document.getElementById('pagination');
+            container.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '‹';
+            prevBtn.className = 'page-btn';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { currentPage--; renderPage(); };
+            container.appendChild(prevBtn);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                btn.onclick = () => { currentPage = i; renderPage(); };
+                container.appendChild(btn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '›';
+            nextBtn.className = 'page-btn';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { currentPage++; renderPage(); };
+            container.appendChild(nextBtn);
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('starRange').value = 1;
+            currentSentiment = 'all';
+            document.querySelectorAll('.sentiment-chip').forEach(chip => chip.classList.remove('active'));
+            document.querySelector('.sentiment-chip[data-value="all"]').classList.add('active');
+            currentPage = 1;
+            renderPage();
+        }
+
+        renderPage();
+    </script>
+
+</body>
+</html>
